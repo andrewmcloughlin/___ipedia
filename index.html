@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>____ipedia</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            padding-bottom: 1rem;
+        }
+        body.dark {
+            background-color: #1f2937;
+            color: #f3f4f6;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        body.dark .loading-spinner {
+            border-color: #4b5563;
+            border-top-color: #60a5fa;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .glow-button {
+            transition: all 0.3s ease;
+            box-shadow: 0 0 0px #3b82f6;
+        }
+        .glow-button:hover {
+            box-shadow: 0 0 10px #3b82f6;
+        }
+        .input-glow:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        body.dark .input-glow:focus {
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.5);
+        }
+        body.dark .bg-gray-50 {
+            background-color: #4b5563;
+        }
+        body.dark .text-gray-800, body.dark .text-gray-700 {
+            color: #f3f4f6;
+        }
+        body.dark .text-gray-600 {
+            color: #d1d5db;
+        }
+        body.dark .border-gray-300 {
+            border-color: #6b7280;
+        }
+        body.dark .bg-blue-200 {
+            background-color: #60a5fa;
+            color: #1e40af;
+        }
+        body.dark .bg-gray-900 {
+            background-color: #111827;
+        }
+        body.dark .bg-blue-600 {
+            background-color: #3b82f6;
+        }
+        body.dark .bg-red-500 {
+            background-color: #ef4444;
+        }
+        body.dark .bg-green-500 {
+            background-color: #22c55e;
+        }
+        .nav-buttons button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: #4b5563;
+            transition: color 0.3s ease;
+        }
+        body.dark .nav-buttons button {
+            color: #d1d5db;
+        }
+        .sticky-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 2rem 1rem 5rem 1rem;
+            background-color: #f3f4f6;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        body.dark .sticky-footer {
+            background-color: #1f2937;
+            box-shadow: 0 -4px 6px -1px rgba(255, 255, 255, 0.05), 0 -2px 4px -1px rgba(255, 255, 255, 0.03);
+        }
+        /* Custom styling for the input group */
+        .input-group input {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            border-right-width: 0;
+        }
+        body.dark .input-group input {
+            background-color: #374151;
+            color: #d1d5db;
+            border-color: #4b5563;
+        }
+        .input-group button {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        body.dark .slider {
+            background-color: #6b7280;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        body.dark input:checked + .slider {
+            background-color: #60a5fa;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Dark mode styles for the settings modal */
+        body.dark .bg-white {
+            background-color: #2d3748;
+        }
+        body.dark .bg-gray-100 {
+            background-color: #4a5568;
+        }
+        /* Specific dark mode styling for the language select dropdown */
+        body.dark #language-select {
+            background-color: #374151;
+            color: #d1d5db;
+            border-color: #4b5563;
+        }
+        
+        /* New Z-index for the settings modal to ensure it's on top */
+        #settings-modal {
+            z-index: 60;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center min-h-screen">
+    <!-- Navigation Bar -->
+    <nav class="fixed top-0 left-0 w-full bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center z-50">
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">____ipedia</h1>
+        <div class="flex gap-2 nav-buttons">
+            <button id="settings-toggle" aria-label="Settings">⚙️</button>
+            <button id="dark-mode-toggle" aria-label="Toggle dark mode">
+                <span id="toggle-icon">🌙</span>
+            </button>
+        </div>
+    </nav>
+    <div class="max-w-xl w-full flex flex-col items-center text-center pt-20 pb-96">
+        <div id="game-area" class="w-full flex flex-col items-center">
+            <p id="game-status" class="text-gray-600 mb-4 text-lg">Loading a new article...</p>
+            <div id="loading" class="flex justify-center items-center my-8">
+                <div class="loading-spinner"></div>
+            </div>
+            <div id="game-info" class="hidden w-full">
+                <div class="bg-gray-50 p-4 rounded-xl mb-6">
+                    <p id="first-paragraph-clue" class="link-list text-left space-y-1 text-gray-600 leading-relaxed"></p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-xl mb-6">
+                    <h3 class="text-xl font-semibold text-gray-700">Categories</h3>
+                    <div id="category-list" class="flex flex-wrap gap-2 mt-2"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Streak Tracker -->
+        <div id="streak-tracker" class="mt-4 text-lg text-gray-700 dark:text-gray-300 flex flex-wrap justify-center items-center gap-2 max-w-lg mx-auto">
+            <p id="streak-list" class="text-gray-600 dark:text-gray-400"></p>
+        </div>
+        <div id="message-box" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white p-8 rounded-xl shadow-xl text-center max-w-sm">
+                <h3 id="message-title" class="text-2xl font-bold mb-4 text-gray-800"></h3>
+                <p id="message-text" class="text-gray-600 mb-6"></p>
+                <button id="close-message" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 glow-button">OK</button>
+            </div>
+        </div>
+        <div id="settings-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white p-8 rounded-xl shadow-xl text-center max-w-sm w-full relative">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">Settings</h3>
+                <!-- Close button for settings modal -->
+                <button id="close-settings" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors" aria-label="Close settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <div class="flex flex-col items-center p-4 bg-gray-100 rounded-lg mb-4">
+                    <span class="text-lg text-gray-700 mb-2">Source: <span id="country-language-display" class="font-bold text-gray-800"></span></span>
+                    <label for="language-select" class="text-lg text-gray-700 mb-2">Select Language:</label>
+                    <select id="language-select" class="p-2 rounded-md border border-gray-300 w-full text-gray-800">
+                        <option value="en">English</option>
+                        <option value="de">German</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                        <option value="it">Italian</option>
+                        <option value="ja">Japanese</option>
+                        <option value="hi">Hindi</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="zh">Chinese</option>
+                        <option value="ru">Russian</option>
+                        <option value="ko">Korean</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+                    <span class="text-lg text-gray-700">Down the Rabbit Hole Mode</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="rabbit-hole-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="sticky-footer" class="sticky-footer">
+        <!-- New container for the result message at the top of the footer -->
+        <div id="footer-message-container" class="max-w-xl mx-auto px-4 mb-4 text-center">
+            <p id="footer-message" class="text-lg font-bold"></p>
+        </div>
+        <div id="game-controls" class="max-w-xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
+            <!-- Input group with Guess button -->
+            <div id="input-controls" class="flex-grow flex input-group">
+                <input type="text" id="user-guess" placeholder="Enter your guess..." class="flex-grow p-3 border border-gray-300 rounded-lg text-lg input-glow transition-shadow duration-300" />
+                <button id="guess-button" class="bg-blue-600 text-white p-3 rounded-lg text-lg font-bold hover:bg-blue-700 glow-button">Guess</button>
+            </div>
+            <!-- Give Up button -->
+            <button id="give-up-button" class="w-full sm:w-auto bg-red-500 text-white p-3 rounded-lg text-lg font-bold hover:bg-red-600 glow-button mt-2 sm:mt-0">Give Up</button>
+            
+            <!-- Game over display, hidden by default -->
+            <div id="game-over-display" class="hidden w-full flex flex-col items-center justify-center">
+                <button id="new-game-button" class="w-full bg-green-500 text-white p-3 rounded-lg text-lg font-bold hover:bg-green-600 mt-2 glow-button">New Game</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const API_URL = 'https://en.wikipedia.org/w/api.php';
+        let correctTitle = '';
+        let correctGuesses = []; // New array to store correct guesses
+        let currentLanguageCode = 'en'; // Default language
+        let userCountry = 'Unknown';
+
+        // DOM elements
+        const gameStatus = document.getElementById('game-status');
+        const loadingSpinner = document.getElementById('loading');
+        const gameInfo = document.getElementById('game-info');
+        const firstParagraphClue = document.getElementById('first-paragraph-clue');
+        const categoryList = document.getElementById('category-list');
+        const userGuessInput = document.getElementById('user-guess');
+        const guessButton = document.getElementById('guess-button');
+        const giveUpButton = document.getElementById('give-up-button');
+        const newGameButton = document.getElementById('new-game-button');
+        const messageBox = document.getElementById('message-box');
+        const messageTitle = document.getElementById('message-title');
+        const messageText = document.getElementById('message-text');
+        const closeMessageButton = document.getElementById('close-message');
+        // const resultMessage = document.getElementById('result-message'); // This element is no longer used
+        const footerMessage = document.getElementById('footer-message'); // New element for the footer message
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const settingsToggle = document.getElementById('settings-toggle');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsButton = document.getElementById('close-settings');
+        const rabbitHoleToggle = document.getElementById('rabbit-hole-toggle');
+        const languageSelect = document.getElementById('language-select');
+        const countryLanguageDisplay = document.getElementById('country-language-display');
+        const body = document.body;
+        const toggleIcon = document.getElementById('toggle-icon');
+        const streakList = document.getElementById('streak-list');
+        const inputControls = document.getElementById('input-controls');
+        const gameOverDisplay = document.getElementById('game-over-display');
+
+        // Handles showing a custom message box instead of alert()
+        function showMessage(title, text) {
+            messageTitle.textContent = title;
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden');
+        }
+
+        // Handles hiding the custom message box
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        closeMessageButton.addEventListener('click', hideMessage);
+
+        // Dark mode logic
+        function enableDarkMode() {
+            body.classList.add('dark');
+            toggleIcon.textContent = '☀️';
+            localStorage.setItem('darkMode', 'enabled');
+        }
+
+        function disableDarkMode() {
+            body.classList.remove('dark');
+            toggleIcon.textContent = '🌙';
+            localStorage.setItem('darkMode', 'disabled');
+        }
+
+        darkModeToggle.addEventListener('click', () => {
+            if (body.classList.contains('dark')) {
+                disableDarkMode();
+            } else {
+                enableDarkMode();
+            }
+        });
+
+        // Check for saved theme preference on load, and default to dark mode if not set
+        if (localStorage.getItem('darkMode') === 'disabled') {
+            disableDarkMode();
+        } else {
+            enableDarkMode();
+        }
+
+        // Settings modal logic
+        settingsToggle.addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+        });
+
+        closeSettingsButton.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+
+        // Rabbit hole mode logic
+        function loadRabbitHoleSetting() {
+            const isRabbitHoleEnabled = localStorage.getItem('rabbitHoleMode') === 'enabled';
+            rabbitHoleToggle.checked = isRabbitHoleEnabled;
+        }
+        
+        rabbitHoleToggle.addEventListener('change', () => {
+            if (rabbitHoleToggle.checked) {
+                localStorage.setItem('rabbitHoleMode', 'enabled');
+            } else {
+                localStorage.setItem('rabbitHoleMode', 'disabled');
+            }
+        });
+
+        // Mapping from country codes to language codes and country names
+        const countryCodeToLanguageMap = {
+            'US': { lang: 'en', country: 'United States' },
+            'GB': { lang: 'en', country: 'United Kingdom' },
+            'CA': { lang: 'en', country: 'Canada' },
+            'AU': { lang: 'en', country: 'Australia' },
+            'DE': { lang: 'de', country: 'Germany' },
+            'FR': { lang: 'fr', country: 'France' },
+            'ES': { lang: 'es', country: 'Spain' },
+            'IT': { lang: 'it', country: 'Italy' },
+            'JP': { lang: 'ja', country: 'Japan' },
+            'IN': { lang: 'hi', country: 'India' },
+            'PT': { lang: 'pt', country: 'Portugal' },
+            'BR': { lang: 'pt', country: 'Brazil' },
+            'NL': { lang: 'nl', country: 'Netherlands' },
+            'SE': { lang: 'sv', country: 'Sweden' },
+            'PL': { lang: 'pl', country: 'Poland' },
+            'TR': { lang: 'tr', country: 'Turkey' },
+            'MX': { lang: 'es', country: 'Mexico' },
+            'RU': { lang: 'ru', country: 'Russia' },
+            'KR': { lang: 'ko', country: 'South Korea' },
+            'CN': { lang: 'zh', country: 'China' },
+        };
+        
+        // Language selection logic
+        languageSelect.addEventListener('change', () => {
+            currentLanguageCode = languageSelect.value;
+            localStorage.setItem('languageCode', currentLanguageCode);
+            // After changing the language, start a new game immediately
+            startNewGame();
+        });
+
+        // Fetches the user's country code using a free geo-location API
+        async function getUserCountryCode() {
+            try {
+                const response = await fetch('http://ip-api.com/json/');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.countryCode;
+                }
+            } catch (error) {
+                console.error('Error fetching country code:', error);
+            }
+            return null;
+        }
+
+        async function setGameLanguage() {
+            const savedLanguage = localStorage.getItem('languageCode');
+            if (savedLanguage) {
+                currentLanguageCode = savedLanguage;
+                languageSelect.value = savedLanguage;
+                countryLanguageDisplay.textContent = `(Manually selected: ${languageSelect.options[languageSelect.selectedIndex].text})`;
+            } else {
+                const countryCode = await getUserCountryCode();
+                if (countryCode && countryCodeToLanguageMap[countryCode]) {
+                    const langInfo = countryCodeToLanguageMap[countryCode];
+                    currentLanguageCode = langInfo.lang;
+                    languageSelect.value = langInfo.lang;
+                    userCountry = langInfo.country;
+                    countryLanguageDisplay.textContent = `(Detected: ${userCountry}, ${languageSelect.options[languageSelect.selectedIndex].text})`;
+                } else {
+                    currentLanguageCode = 'en';
+                    languageSelect.value = 'en';
+                    userCountry = 'Global (Fallback)';
+                    countryLanguageDisplay.textContent = `(Detected: ${userCountry}, English)`;
+                }
+            }
+        }
+
+        // Updates the visual display of the correct guess streak
+        function updateStreakDisplay() {
+            if (correctGuesses.length > 0) {
+                const formattedGue
