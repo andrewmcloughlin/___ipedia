@@ -416,7 +416,8 @@
         // Fetches the user's country code using a free geo-location API
         async function getUserCountryCode() {
             try {
-                const response = await fetch('http://ip-api.com/json/');
+                // Corrected the protocol from http to https
+                const response = await fetch('https://ip-api.com/json/');
                 if (response.ok) {
                     const data = await response.json();
                     return data.countryCode;
@@ -452,5 +453,4 @@
 
         // Updates the visual display of the correct guess streak
         function updateStreakDisplay() {
-            if (correctGuesses.length > 0) {
-                const formattedGue
+            if (c
