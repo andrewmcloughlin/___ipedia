@@ -180,8 +180,8 @@
             border-color: #4b5563;
         }
         
-        /* New Z-index for the settings modal to ensure it's on top */
-        #settings-modal {
+        /* New Z-index for the settings modal and how-to-play modal to ensure it's on top */
+        #settings-modal, #how-to-play-modal {
             z-index: 60;
         }
     </style>
@@ -191,6 +191,7 @@
     <nav class="fixed top-0 left-0 w-full bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center z-50">
         <h1 class="text-3xl font-bold text-gray-800 dark:text-white">____ipedia</h1>
         <div class="flex gap-2 nav-buttons">
+            <button id="how-to-play-toggle" aria-label="How to play">❔</button>
             <button id="settings-toggle" aria-label="Settings">⚙️</button>
             <button id="dark-mode-toggle" aria-label="Toggle dark mode">
                 <span id="toggle-icon">🌙</span>
@@ -224,6 +225,24 @@
                 <button id="close-message" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 glow-button">OK</button>
             </div>
         </div>
+        <!-- How to Play Modal -->
+        <div id="how-to-play-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white p-8 rounded-xl shadow-xl max-w-sm w-full relative mx-4">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">How to Play</h3>
+                <p class="text-gray-600 dark:text-gray-300 text-left mb-4">
+                    Welcome to ____ipedia! The goal is to guess the Wikipedia article.
+                </p>
+                <ul class="list-disc list-inside text-gray-600 dark:text-gray-300 text-left space-y-2 mb-6">
+                    <li>You will be shown the first paragraph of a Wikipedia article, with the title and key words blanked out.</li>
+                    <li>You will also see a list of categories the article belongs to.</li>
+                    <li>Type your guess into the box and hit "Guess".</li>
+                    <li>If you're right, you'll earn a point and can try the "Down the Rabbit Hole" mode, where the next article is a link from the one you just guessed!</li>
+                    <li>If you're wrong, your streak resets.</li>
+                </ul>
+                <button id="close-how-to-play" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 glow-button w-full">Got It!</button>
+            </div>
+        </div>
+        <!-- Settings Modal -->
         <div id="settings-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
             <div class="bg-white p-8 rounded-xl shadow-xl text-center max-w-sm w-full relative">
                 <h3 class="text-2xl font-bold mb-4 text-gray-800">Settings</h3>
@@ -234,7 +253,6 @@
                     </svg>
                 </button>
                 <div class="flex flex-col items-center p-4 bg-gray-100 rounded-lg mb-4">
-                    <span class="text-lg text-gray-700 mb-2">Source: <span id="country-language-display" class="font-bold text-gray-800"></span></span>
                     <label for="language-select" class="text-lg text-gray-700 mb-2">Select Language:</label>
                     <select id="language-select" class="p-2 rounded-md border border-gray-300 w-full text-gray-800">
                         <option value="en">English</option>
@@ -250,12 +268,15 @@
                         <option value="ko">Korean</option>
                     </select>
                 </div>
-                <div class="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
-                    <span class="text-lg text-gray-700">Down the Rabbit Hole Mode</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="rabbit-hole-toggle">
-                        <span class="slider"></span>
-                    </label>
+                <div class="p-4 bg-gray-100 rounded-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-lg text-gray-700">Down the Rabbit Hole Mode</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="rabbit-hole-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <p class="text-sm text-gray-600 text-left">When enabled, the next puzzle will be an article linked from the one you just guessed, allowing you to follow a path of related topics.</p>
                 </div>
             </div>
         </div>
@@ -271,8 +292,8 @@
                 <input type="text" id="user-guess" placeholder="Enter your guess..." class="flex-grow p-3 border border-gray-300 rounded-lg text-lg input-glow transition-shadow duration-300" />
                 <button id="guess-button" class="bg-blue-600 text-white p-3 rounded-lg text-lg font-bold hover:bg-blue-700 glow-button">Guess</button>
             </div>
-            <!-- Give Up button -->
-            <button id="give-up-button" class="w-full sm:w-auto bg-red-500 text-white p-3 rounded-lg text-lg font-bold hover:bg-red-600 glow-button mt-2 sm:mt-0">Give Up</button>
+            <!-- Skip button with secondary color -->
+            <button id="skip-button" class="w-full sm:w-auto bg-gray-400 text-gray-800 p-3 rounded-lg text-lg font-bold hover:bg-gray-500 glow-button mt-2 sm:mt-0 dark:bg-gray-600 dark:hover:bg-gray-700 dark:text-white">Skip</button>
             
             <!-- Game over display, hidden by default -->
             <div id="game-over-display" class="hidden w-full flex flex-col items-center justify-center">
@@ -285,7 +306,6 @@
         let correctTitle = '';
         let correctGuesses = []; // New array to store correct guesses
         let currentLanguageCode = 'en'; // Default language
-        let userCountry = 'Unknown';
 
         // DOM elements
         const gameStatus = document.getElementById('game-status');
@@ -295,7 +315,7 @@
         const categoryList = document.getElementById('category-list');
         const userGuessInput = document.getElementById('user-guess');
         const guessButton = document.getElementById('guess-button');
-        const giveUpButton = document.getElementById('give-up-button');
+        const skipButton = document.getElementById('skip-button');
         const newGameButton = document.getElementById('new-game-button');
         const messageBox = document.getElementById('message-box');
         const messageTitle = document.getElementById('message-title');
@@ -304,16 +324,31 @@
         const footerMessage = document.getElementById('footer-message'); // New element for the footer message
         const darkModeToggle = document.getElementById('dark-mode-toggle');
         const settingsToggle = document.getElementById('settings-toggle');
+        const howToPlayToggle = document.getElementById('how-to-play-toggle');
         const settingsModal = document.getElementById('settings-modal');
+        const howToPlayModal = document.getElementById('how-to-play-modal');
         const closeSettingsButton = document.getElementById('close-settings');
+        const closeHowToPlayButton = document.getElementById('close-how-to-play');
         const rabbitHoleToggle = document.getElementById('rabbit-hole-toggle');
         const languageSelect = document.getElementById('language-select');
-        const countryLanguageDisplay = document.getElementById('country-language-display');
         const body = document.body;
         const toggleIcon = document.getElementById('toggle-icon');
         const streakList = document.getElementById('streak-list');
         const inputControls = document.getElementById('input-controls');
         const gameOverDisplay = document.getElementById('game-over-display');
+
+        // A list of keywords to filter out potentially morbid or sensitive topics.
+        const MORBID_KEYWORDS = [
+            'death', 'murder', 'killed', 'war', 'tragedy', 'disaster',
+            'assassination', 'genocide', 'suicide', 'epidemic', 'famine',
+            'torture', 'execution', 'massacre', 'holocaust', 'shooting'
+        ];
+
+        // Checks if a given text contains any of the morbid keywords.
+        function isMorbid(text) {
+            const lowerCaseText = text.toLowerCase();
+            return MORBID_KEYWORDS.some(keyword => lowerCaseText.includes(keyword));
+        }
 
         // Handles showing a custom message box instead of alert()
         function showMessage(title, text) {
@@ -338,7 +373,7 @@
 
         function disableDarkMode() {
             body.classList.remove('dark');
-            toggleIcon.textContent = '�';
+            toggleIcon.textContent = '🌙';
             localStorage.setItem('darkMode', 'disabled');
         }
 
@@ -365,6 +400,15 @@
         closeSettingsButton.addEventListener('click', () => {
             settingsModal.classList.add('hidden');
         });
+        
+        // How to play modal logic
+        howToPlayToggle.addEventListener('click', () => {
+            howToPlayModal.classList.remove('hidden');
+        });
+        
+        closeHowToPlayButton.addEventListener('click', () => {
+            howToPlayModal.classList.add('hidden');
+        });
 
         // Rabbit hole mode logic
         function loadRabbitHoleSetting() {
@@ -380,53 +424,21 @@
             }
         });
 
-        // Mapping from country codes to language codes and country names
-        const countryCodeToLanguageMap = {
-            'US': { lang: 'en', country: 'United States' },
-            'GB': { lang: 'en', country: 'United Kingdom' },
-            'CA': { lang: 'en', country: 'Canada' },
-            'AU': { lang: 'en', country: 'Australia' },
-            'DE': { lang: 'de', country: 'Germany' },
-            'FR': { lang: 'fr', country: 'France' },
-            'ES': { lang: 'es', country: 'Spain' },
-            'IT': { lang: 'it', country: 'Italy' },
-            'JP': { lang: 'ja', country: 'Japan' },
-            'IN': { lang: 'hi', country: 'India' },
-            'PT': { lang: 'pt', country: 'Portugal' },
-            'BR': { lang: 'pt', country: 'Brazil' },
-            'NL': { lang: 'nl', country: 'Netherlands' },
-            'SE': { lang: 'sv', country: 'Sweden' },
-            'PL': { lang: 'pl', country: 'Poland' },
-            'TR': { lang: 'tr', country: 'Turkey' },
-            'MX': { lang: 'es', country: 'Mexico' },
-            'RU': { lang: 'ru', country: 'Russia' },
-            'KR': { lang: 'ko', country: 'South Korea' },
-            'CN': { lang: 'zh', country: 'China' },
-        };
-        
         // Language selection logic
         languageSelect.addEventListener('change', () => {
             currentLanguageCode = languageSelect.value;
             localStorage.setItem('languageCode', currentLanguageCode);
-            // After changing the language, start a new game immediately
-            startNewGame();
+            startNewGame(null, true); // Start a new game and reset streak
         });
-
-        // This function is now removed to prevent the game from hanging on GitHub Pages.
-        // async function getUserCountryCode() { ... }
 
         async function setGameLanguage() {
             const savedLanguage = localStorage.getItem('languageCode');
             if (savedLanguage) {
                 currentLanguageCode = savedLanguage;
                 languageSelect.value = savedLanguage;
-                countryLanguageDisplay.textContent = `(Manually selected: ${languageSelect.options[languageSelect.selectedIndex].text})`;
             } else {
-                // We're skipping the geolocation call and defaulting to English.
                 currentLanguageCode = 'en';
                 languageSelect.value = 'en';
-                userCountry = 'Global (Default)';
-                countryLanguageDisplay.textContent = `(Default: English)`;
             }
         }
 
@@ -599,67 +611,77 @@
         // Ends the game by revealing the answer and showing the New Game button
         function endGame(wasCorrect = false, message = '') {
             inputControls.classList.add('hidden');
-            giveUpButton.classList.add('hidden');
+            skipButton.classList.add('hidden');
             gameOverDisplay.classList.remove('hidden');
             footerMessage.innerHTML = message;
             footerMessage.classList.remove('text-red-500', 'text-green-500');
             footerMessage.classList.add(wasCorrect ? 'text-green-500' : 'text-red-500');
         }
 
-        // Starts a new game, optionally with a specified article title
-        async function startNewGame(nextTitle = null) {
+        // Starts a new game, optionally with a specified article title and a flag to reset the streak
+        async function startNewGame(nextTitle = null, resetStreak = true) {
             // Reset UI
             gameStatus.classList.remove('text-red-500', 'text-green-500');
             loadingSpinner.classList.remove('hidden');
             gameInfo.classList.add('hidden');
             gameOverDisplay.classList.add('hidden');
             inputControls.classList.remove('hidden');
-            giveUpButton.classList.remove('hidden');
+            skipButton.classList.remove('hidden');
             userGuessInput.value = '';
             userGuessInput.disabled = false;
             guessButton.disabled = false;
-            giveUpButton.disabled = false;
+            skipButton.disabled = false;
             categoryList.innerHTML = '';
             firstParagraphClue.textContent = '';
             footerMessage.innerHTML = ''; // Clear the previous result message
             
-            // Reset streak on a new game if not chaining
-            if (!nextTitle) {
+            // Only reset streak if the flag is true
+            if (resetStreak) {
                 correctGuesses = [];
                 updateStreakDisplay();
             }
 
             let articleTitle;
+            let retries = 0;
+            const MAX_RETRIES = 10;
             
-            if (nextTitle) {
-                articleTitle = nextTitle;
-            } else {
-                // Get a list of popular articles from the determined language domain
-                const popularArticles = await getMostViewedArticles(currentLanguageCode);
-                if (popularArticles && popularArticles.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * popularArticles.length);
-                    articleTitle = popularArticles[randomIndex];
+            while (retries < MAX_RETRIES) {
+                if (nextTitle) {
+                    articleTitle = nextTitle;
                 } else {
-                    // Fallback to random if popular articles can't be fetched
-                    articleTitle = await getRandomArticle(currentLanguageCode);
+                    // Get a list of popular articles from the determined language domain
+                    const popularArticles = await getMostViewedArticles(currentLanguageCode);
+                    if (popularArticles && popularArticles.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * popularArticles.length);
+                        articleTitle = popularArticles[randomIndex];
+                    } else {
+                        // Fallback to random if popular articles can't be fetched
+                        articleTitle = await getRandomArticle(currentLanguageCode);
+                    }
                 }
+
+                // A check to prevent 'Main Page' and morbid topics from being selected
+                if (articleTitle && articleTitle !== 'Main Page' && !isMorbid(articleTitle)) {
+                    // Also check the article's categories for morbid keywords
+                    const categories = await getArticleCategories(articleTitle);
+                    if (!categories.some(isMorbid)) {
+                        break; // Found a suitable article, break the loop
+                    }
+                }
+
+                console.log(`Skipping article "${articleTitle}" due to filtering criteria. Retrying...`);
+                articleTitle = null; // Reset title to force a new fetch
+                retries++;
             }
 
-            // A check to prevent 'Main Page' from being selected
-            if (articleTitle === 'Main Page') {
-                console.log('Main Page selected, fetching a new article.');
-                startNewGame(); // Recursively call to get a new title
+            if (!articleTitle) {
+                loadingSpinner.classList.add('hidden');
+                gameStatus.textContent = 'Failed to load a suitable article. Please try again.';
+                newGameButton.classList.remove('hidden');
                 return;
             }
 
             correctTitle = articleTitle;
-
-            if (!correctTitle) {
-                loadingSpinner.classList.add('hidden');
-                gameStatus.textContent = 'Failed to load article. Please try again.';
-                newGameButton.classList.remove('hidden');
-                return;
-            }
 
             // Fetch all clues in parallel
             const [firstParagraph, categories] = await Promise.all([
@@ -671,7 +693,7 @@
             if (!firstParagraph) {
                 gameStatus.textContent = 'Article had no summary. Finding another one...';
                 console.log(`No summary found for "${correctTitle}". Retrying...`);
-                startNewGame();
+                startNewGame(null, resetStreak); // Recursively call to get a new article, preserving the streak logic
                 return;
             }
 
@@ -701,7 +723,7 @@
             gameStatus.textContent = 'What is the article about?';
         }
         
-        function handleCorrectGuess() {
+        async function handleCorrectGuess() {
             // Add the correct guess to the streak
             correctGuesses.push(correctTitle);
             updateStreakDisplay();
@@ -709,24 +731,26 @@
             footerMessage.classList.add('text-green-500');
             
             inputControls.classList.add('hidden');
-            giveUpButton.classList.add('hidden');
+            skipButton.classList.add('hidden');
             
             const isRabbitHoleEnabled = localStorage.getItem('rabbitHoleMode') === 'enabled';
             
             setTimeout(async () => {
                 if (isRabbitHoleEnabled) {
                     gameStatus.textContent = 'Correct! Loading a related article...';
-                    const links = await getArticleLinks(correctTitle);
+                    let links = await getArticleLinks(correctTitle);
+                    // Filter out morbid links from the list
+                    links = links.filter(link => !isMorbid(link));
                     if (links.length > 0) {
                         const randomIndex = Math.floor(Math.random() * links.length);
-                        startNewGame(links[randomIndex]);
+                        startNewGame(links[randomIndex], false); // Pass `false` to prevent resetting streak
                     } else {
-                        gameStatus.textContent = 'No internal links found. Starting a new game with a random article...';
-                        startNewGame();
+                        gameStatus.textContent = 'No suitable internal links found. Starting a new game with a random article...';
+                        startNewGame(null, false); // Pass `false` to prevent resetting streak
                     }
                 } else {
                     gameStatus.textContent = 'Correct! Starting a new game with a random article...';
-                    startNewGame();
+                    startNewGame(null, false); // Pass `false` to prevent resetting streak
                 }
             }, 2000); // Wait for 2 seconds to show the correct message
         }
@@ -742,7 +766,7 @@
             // Disable buttons and input to prevent double-clicking
             userGuessInput.disabled = true;
             guessButton.disabled = true;
-            giveUpButton.disabled = true;
+            skipButton.disabled = true;
 
             // Normalize the correct title and split into words
             const normalizedCorrectWords = correctTitle.toLowerCase().replace(/_/g, ' ').replace(/[^\w\s]/gi, '').split(/\s+/).filter(word => word.length > 0);
@@ -771,18 +795,18 @@
             }
         }
 
-        // Function for the give up button
-        function giveUp() {
-            correctGuesses = []; // Reset streak on giving up
+        // Function for the skip button
+        function skipGame() {
+            correctGuesses = []; // Reset streak on skipping
             updateStreakDisplay();
-            const message = `You gave up! The correct answer was <a href="https://${currentLanguageCode}.wikipedia.org/wiki/${correctTitle}" target="_blank" class="text-blue-600 underline hover:text-blue-800">${correctTitle.replace(/_/g, ' ')}</a>.`;
+            const message = `You skipped! The correct answer was <a href="https://${currentLanguageCode}.wikipedia.org/wiki/${correctTitle}" target="_blank" class="text-blue-600 underline hover:text-blue-800">${correctTitle.replace(/_/g, ' ')}</a>.`;
             endGame(false, message);
         }
 
         // Event listeners
         guessButton.addEventListener('click', checkGuess);
-        giveUpButton.addEventListener('click', giveUp);
-        newGameButton.addEventListener('click', () => startNewGame());
+        skipButton.addEventListener('click', skipGame);
+        newGameButton.addEventListener('click', () => startNewGame(null, true)); // Start a new game and reset streak
         userGuessInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !guessButton.disabled) {
                 checkGuess();
@@ -793,9 +817,13 @@
         window.onload = async () => {
             loadRabbitHoleSetting();
             await setGameLanguage();
-            startNewGame();
+            startNewGame(null, true); // Start a new game and reset streak
+            // Show the "How to Play" modal on the first visit
+            if (localStorage.getItem('hasVisited') !== 'true') {
+                howToPlayModal.classList.remove('hidden');
+                localStorage.setItem('hasVisited', 'true');
+            }
         };
     </script>
 </body>
 </html>
-�
