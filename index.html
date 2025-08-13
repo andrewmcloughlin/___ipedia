@@ -301,7 +301,6 @@
         const messageTitle = document.getElementById('message-title');
         const messageText = document.getElementById('message-text');
         const closeMessageButton = document.getElementById('close-message');
-        // const resultMessage = document.getElementById('result-message'); // This element is no longer used
         const footerMessage = document.getElementById('footer-message'); // New element for the footer message
         const darkModeToggle = document.getElementById('dark-mode-toggle');
         const settingsToggle = document.getElementById('settings-toggle');
@@ -339,7 +338,7 @@
 
         function disableDarkMode() {
             body.classList.remove('dark');
-            toggleIcon.textContent = '🌙';
+            toggleIcon.textContent = '�';
             localStorage.setItem('darkMode', 'disabled');
         }
 
@@ -413,20 +412,8 @@
             startNewGame();
         });
 
-        // Fetches the user's country code using a free geo-location API
-        async function getUserCountryCode() {
-            try {
-                // Corrected the protocol from http to https
-                const response = await fetch('https://ip-api.com/json/');
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.countryCode;
-                }
-            } catch (error) {
-                console.error('Error fetching country code:', error);
-            }
-            return null;
-        }
+        // This function is now removed to prevent the game from hanging on GitHub Pages.
+        // async function getUserCountryCode() { ... }
 
         async function setGameLanguage() {
             const savedLanguage = localStorage.getItem('languageCode');
@@ -435,22 +422,380 @@
                 languageSelect.value = savedLanguage;
                 countryLanguageDisplay.textContent = `(Manually selected: ${languageSelect.options[languageSelect.selectedIndex].text})`;
             } else {
-                const countryCode = await getUserCountryCode();
-                if (countryCode && countryCodeToLanguageMap[countryCode]) {
-                    const langInfo = countryCodeToLanguageMap[countryCode];
-                    currentLanguageCode = langInfo.lang;
-                    languageSelect.value = langInfo.lang;
-                    userCountry = langInfo.country;
-                    countryLanguageDisplay.textContent = `(Detected: ${userCountry}, ${languageSelect.options[languageSelect.selectedIndex].text})`;
-                } else {
-                    currentLanguageCode = 'en';
-                    languageSelect.value = 'en';
-                    userCountry = 'Global (Fallback)';
-                    countryLanguageDisplay.textContent = `(Detected: ${userCountry}, English)`;
-                }
+                // We're skipping the geolocation call and defaulting to English.
+                currentLanguageCode = 'en';
+                languageSelect.value = 'en';
+                userCountry = 'Global (Default)';
+                countryLanguageDisplay.textContent = `(Default: English)`;
             }
         }
 
         // Updates the visual display of the correct guess streak
         function updateStreakDisplay() {
-            if (c
+            if (correctGuesses.length > 0) {
+                const formattedGuesses = correctGuesses.map(title => title.replace(/_/g, ' ')).join(' → ');
+                streakList.innerHTML = `<span class="font-bold text-gray-800 dark:text-gray-200">Current Streak:</span> ${formattedGuesses}`;
+            } else {
+                streakList.textContent = 'Current Streak: 0';
+            }
+        }
+        
+        // Calculates the Levenshtein distance between two strings.
+        // This is a simple implementation of the algorithm.
+        function calculateLevenshteinDistance(a, b) {
+            const an = a.length;
+            const bn = b.length;
+            const matrix = Array(an + 1).fill(null).map(() => Array(bn + 1).fill(null));
+
+            for (let i = 1; i <= an; i++) {
+                matrix[i][0] = i;
+            }
+            for (let j = 1; j <= bn; j++) {
+                matrix[0][j] = j;
+            }
+
+            for (let i = 1; i <= an; i++) {
+                for (let j = 1; j <= bn; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j] + 1, // deletion
+                        matrix[i][j - 1] + 1, // insertion
+                        matrix[i - 1][j - 1] + cost // substitution
+                    );
+                }
+            }
+            return matrix[an][bn];
+        }
+
+        // Fetches a list of the most viewed articles for a given language code
+        async function getMostViewedArticles(langCode) {
+            gameStatus.textContent = `Fetching today's top articles from ${langCode.toUpperCase()} Wikipedia...`;
+            
+            for (let i = 1; i <= 3; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/${langCode}.wikipedia/all-access/${year}/${month}/${day}`;
+                
+                try {
+                    const response = await fetch(url, { origin: '*' });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.items && data.items.length > 0 && data.items[0].articles) {
+                            return data.items[0].articles.map(article => article.article);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i}: Error fetching most viewed articles for ${url}:`, error);
+                }
+            }
+            
+            // If all attempts fail, show an error and return null
+            showMessage('Error', `Failed to fetch popular articles for ${langCode.toUpperCase()}. Falling back to a random article.`);
+            return null;
+        }
+        
+        // Fetches a random article from Wikipedia using the generator=random method
+        async function getRandomArticle(langCode) {
+            gameStatus.textContent = `Fetching a random article from ${langCode.toUpperCase()} Wikipedia...`;
+            try {
+                const response = await fetch(`https://${langCode}.wikipedia.org/w/api.php?action=query&format=json&list=random&rnnamespace=0&rnlimit=1&origin=*`);
+                const data = await response.json();
+                if (data.query && data.query.random && data.query.random.length > 0) {
+                    const title = data.query.random[0].title;
+                    console.log('Selected article:', title);
+                    return title;
+                }
+                throw new Error('Could not fetch a random article.');
+            } catch (error) {
+                console.error('Error fetching random article:', error);
+                return null;
+            }
+        }
+        
+        // Fetches the categories for a given page title
+        async function getArticleCategories(title) {
+            gameStatus.textContent = 'Fetching article categories...';
+            try {
+                const response = await fetch(`https://${currentLanguageCode}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=categories&clshow=!hidden&format=json&origin=*`);
+                const data = await response.json();
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+                if (pageId && pages[pageId].categories) {
+                    return pages[pageId].categories.map(cat => cat.title.replace('Category:', ''));
+                }
+                return [];
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                return [];
+            }
+        }
+
+        // Fetches a list of all internal links within an article
+        async function getArticleLinks(title) {
+            gameStatus.textContent = 'Fetching internal links...';
+            try {
+                const response = await fetch(`https://${currentLanguageCode}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=links&pllimit=500&format=json&origin=*`);
+                const data = await response.json();
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+                if (pageId && pages[pageId].links) {
+                    return pages[pageId].links.map(link => link.title);
+                }
+                return [];
+            } catch (error) {
+                console.error('Error fetching links:', error);
+                return [];
+            }
+        }
+        
+        // Helper function to create an underscore placeholder with length equal to the word
+        function createUnderscorePlaceholder(word) {
+            return `[${'_'.repeat(word.length)}]`;
+        }
+        
+        // Fetches the first paragraph and blanks out keywords
+        async function getFirstParagraph(title) {
+            gameStatus.textContent = 'Fetching article summary...';
+            try {
+                const response = await fetch(`https://${currentLanguageCode}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(title)}&origin=*`);
+                const data = await response.json();
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+                const extract = pages[pageId].extract;
+                
+                if (!extract) {
+                    return null; // Return null if no summary is found
+                }
+                
+                // Replace underscores in the title with spaces for consistent matching
+                const titleWithSpaces = title.replace(/_/g, ' ');
+                
+                // Blank out the entire title phrase first.
+                const escapedTitle = titleWithSpaces.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const titleRegex = new RegExp(`\\b(${escapedTitle})(?=[\\s.,;)]|$)`, 'gi');
+                let processedExtract = extract.replace(titleRegex, (match, p1) => createUnderscorePlaceholder(p1));
+                
+                // Now, blank individual words from the title.
+                const commonWords = ['a', 'an', 'the', 'is', 'in', 'of', 'and'];
+                const titleWords = titleWithSpaces.split(' ').filter(word => !commonWords.includes(word.toLowerCase()));
+                
+                titleWords.forEach(word => {
+                    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const wordRegex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
+                    processedExtract = processedExtract.replace(wordRegex, (match) => createUnderscorePlaceholder(match));
+                });
+                
+                return processedExtract;
+            } catch (error) {
+                console.error('Error fetching first paragraph:', error);
+                return null;
+            }
+        }
+
+        // Ends the game by revealing the answer and showing the New Game button
+        function endGame(wasCorrect = false, message = '') {
+            inputControls.classList.add('hidden');
+            giveUpButton.classList.add('hidden');
+            gameOverDisplay.classList.remove('hidden');
+            footerMessage.innerHTML = message;
+            footerMessage.classList.remove('text-red-500', 'text-green-500');
+            footerMessage.classList.add(wasCorrect ? 'text-green-500' : 'text-red-500');
+        }
+
+        // Starts a new game, optionally with a specified article title
+        async function startNewGame(nextTitle = null) {
+            // Reset UI
+            gameStatus.classList.remove('text-red-500', 'text-green-500');
+            loadingSpinner.classList.remove('hidden');
+            gameInfo.classList.add('hidden');
+            gameOverDisplay.classList.add('hidden');
+            inputControls.classList.remove('hidden');
+            giveUpButton.classList.remove('hidden');
+            userGuessInput.value = '';
+            userGuessInput.disabled = false;
+            guessButton.disabled = false;
+            giveUpButton.disabled = false;
+            categoryList.innerHTML = '';
+            firstParagraphClue.textContent = '';
+            footerMessage.innerHTML = ''; // Clear the previous result message
+            
+            // Reset streak on a new game if not chaining
+            if (!nextTitle) {
+                correctGuesses = [];
+                updateStreakDisplay();
+            }
+
+            let articleTitle;
+            
+            if (nextTitle) {
+                articleTitle = nextTitle;
+            } else {
+                // Get a list of popular articles from the determined language domain
+                const popularArticles = await getMostViewedArticles(currentLanguageCode);
+                if (popularArticles && popularArticles.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * popularArticles.length);
+                    articleTitle = popularArticles[randomIndex];
+                } else {
+                    // Fallback to random if popular articles can't be fetched
+                    articleTitle = await getRandomArticle(currentLanguageCode);
+                }
+            }
+
+            // A check to prevent 'Main Page' from being selected
+            if (articleTitle === 'Main Page') {
+                console.log('Main Page selected, fetching a new article.');
+                startNewGame(); // Recursively call to get a new title
+                return;
+            }
+
+            correctTitle = articleTitle;
+
+            if (!correctTitle) {
+                loadingSpinner.classList.add('hidden');
+                gameStatus.textContent = 'Failed to load article. Please try again.';
+                newGameButton.classList.remove('hidden');
+                return;
+            }
+
+            // Fetch all clues in parallel
+            const [firstParagraph, categories] = await Promise.all([
+                getFirstParagraph(correctTitle),
+                getArticleCategories(correctTitle)
+            ]);
+            
+            // If the article has no summary, restart the game with a new article
+            if (!firstParagraph) {
+                gameStatus.textContent = 'Article had no summary. Finding another one...';
+                console.log(`No summary found for "${correctTitle}". Retrying...`);
+                startNewGame();
+                return;
+            }
+
+            // Sort the links alphabetically for a more organized display
+            categories.sort();
+
+            loadingSpinner.classList.add('hidden');
+            gameInfo.classList.remove('hidden');
+            
+            firstParagraphClue.textContent = firstParagraph;
+            
+            // Populate the lists
+            if (categories.length === 0) {
+                const noCatText = document.createElement('span');
+                noCatText.textContent = 'No categories found.';
+                noCatText.className = 'text-gray-600';
+                categoryList.appendChild(noCatText);
+            } else {
+                categories.forEach(cat => {
+                    const pill = document.createElement('span');
+                    pill.textContent = cat;
+                    pill.className = 'bg-blue-200 text-blue-800 text-sm font-medium px-3 py-1 rounded-full whitespace-nowrap';
+                    categoryList.appendChild(pill);
+                });
+            }
+            
+            gameStatus.textContent = 'What is the article about?';
+        }
+        
+        function handleCorrectGuess() {
+            // Add the correct guess to the streak
+            correctGuesses.push(correctTitle);
+            updateStreakDisplay();
+            footerMessage.textContent = 'Correct! Great job!';
+            footerMessage.classList.add('text-green-500');
+            
+            inputControls.classList.add('hidden');
+            giveUpButton.classList.add('hidden');
+            
+            const isRabbitHoleEnabled = localStorage.getItem('rabbitHoleMode') === 'enabled';
+            
+            setTimeout(async () => {
+                if (isRabbitHoleEnabled) {
+                    gameStatus.textContent = 'Correct! Loading a related article...';
+                    const links = await getArticleLinks(correctTitle);
+                    if (links.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * links.length);
+                        startNewGame(links[randomIndex]);
+                    } else {
+                        gameStatus.textContent = 'No internal links found. Starting a new game with a random article...';
+                        startNewGame();
+                    }
+                } else {
+                    gameStatus.textContent = 'Correct! Starting a new game with a random article...';
+                    startNewGame();
+                }
+            }, 2000); // Wait for 2 seconds to show the correct message
+        }
+
+        // Checks the user's guess
+        async function checkGuess() {
+            const userGuess = userGuessInput.value.trim();
+            if (!userGuess) {
+                showMessage('Invalid Guess', 'Please enter a guess.');
+                return;
+            }
+            
+            // Disable buttons and input to prevent double-clicking
+            userGuessInput.disabled = true;
+            guessButton.disabled = true;
+            giveUpButton.disabled = true;
+
+            // Normalize the correct title and split into words
+            const normalizedCorrectWords = correctTitle.toLowerCase().replace(/_/g, ' ').replace(/[^\w\s]/gi, '').split(/\s+/).filter(word => word.length > 0);
+            
+            // Normalize the user's guess and split into words
+            const normalizedGuessWords = userGuess.toLowerCase().replace(/[^\w\s]/gi, '').split(/\s+/).filter(word => word.length > 0);
+            
+            let isCorrect = false;
+
+            // Check if any word from the guess is in the correct title's words
+            for (const guessWord of normalizedGuessWords) {
+                if (normalizedCorrectWords.includes(guessWord)) {
+                    isCorrect = true;
+                    break;
+                }
+            }
+
+            if (isCorrect) {
+                handleCorrectGuess();
+            } else {
+                // Normal incorrect guess handling
+                correctGuesses = []; // Reset streak on a wrong guess
+                updateStreakDisplay();
+                const message = `Incorrect. The correct answer was <a href="https://${currentLanguageCode}.wikipedia.org/wiki/${correctTitle}" target="_blank" class="text-blue-600 underline hover:text-blue-800">${correctTitle.replace(/_/g, ' ')}</a>.`;
+                endGame(false, message);
+            }
+        }
+
+        // Function for the give up button
+        function giveUp() {
+            correctGuesses = []; // Reset streak on giving up
+            updateStreakDisplay();
+            const message = `You gave up! The correct answer was <a href="https://${currentLanguageCode}.wikipedia.org/wiki/${correctTitle}" target="_blank" class="text-blue-600 underline hover:text-blue-800">${correctTitle.replace(/_/g, ' ')}</a>.`;
+            endGame(false, message);
+        }
+
+        // Event listeners
+        guessButton.addEventListener('click', checkGuess);
+        giveUpButton.addEventListener('click', giveUp);
+        newGameButton.addEventListener('click', () => startNewGame());
+        userGuessInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !guessButton.disabled) {
+                checkGuess();
+            }
+        });
+
+        // Start the first game and load settings on page load
+        window.onload = async () => {
+            loadRabbitHoleSetting();
+            await setGameLanguage();
+            startNewGame();
+        };
+    </script>
+</body>
+</html>
+�
